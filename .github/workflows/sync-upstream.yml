@@ -18,14 +18,24 @@ jobs:
       - name: Add upstream remote
         run: git remote add upstream https://github.com/badlogic/pi-mono.git
 
-      - name: Fetch upstream
-        run: git fetch upstream
+      - name: Fetch upstream --tags
+        run: git fetch upstream --tags
 
-      - name: Rebase on upstream
+      - name: Rebase on latest upstream tag
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git rebase upstream/main
+          LATEST=$(git tag -l 'v*' | sort -V | tail -1)
+          echo "Rebasing on $LATEST"
+          git rebase "$LATEST"
+          echo "LATEST_TAG=$LATEST" >> "$GITHUB_ENV"
 
       - name: Push
         run: git push --force-with-lease
+
+      - name: Trigger binary build
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Triggering build for $LATEST_TAG"
+          gh workflow run build-binaries.yml -f tag="$LATEST_TAG"
